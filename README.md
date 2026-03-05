@@ -30,6 +30,7 @@ If you have one active SSH session, it pushes directly. Multiple sessions? A flo
    ```
    xattr -cr /Applications/Clipshove.app
    ```
+   This removes the quarantine flag that macOS adds to apps downloaded from the internet. Since Clipshove isn't signed with an Apple Developer certificate, macOS blocks it by default — this command tells macOS you trust it.
 3. On first launch, macOS will prompt you to grant Accessibility access. Click **Open System Settings** and enable Clipshove — this is required for the global hotkey (Shift+Cmd+V) to work
 
 ### Build from Source
