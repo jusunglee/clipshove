@@ -7,19 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hostSelector = HostSelectorPanel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Check accessibility permissions
-        if !AXIsProcessTrusted() {
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Access Required"
-            alert.informativeText = "Clipshove needs Accessibility access to register the global hotkey (Shift+Cmd+V). Please grant access in System Settings > Privacy & Security > Accessibility."
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open Settings")
-            alert.addButton(withTitle: "Continue Anyway")
-
-            if alert.runModal() == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-            }
-        }
+        // Prompt for accessibility if needed (non-blocking)
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
 
         statusBar = StatusBarController()
         statusBar.onPushTriggered = { [weak self] in
