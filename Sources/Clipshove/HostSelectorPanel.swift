@@ -18,6 +18,7 @@ final class HostSelectorPanel {
         panel.isMovableByWindowBackground = true
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .visible
+        panel.becomesKeyOnlyIfNeeded = false
 
         let view = HostSelectorView(sessions: sessions) { [weak self] session in
             onSelect(session)
@@ -35,6 +36,9 @@ final class HostSelectorPanel {
         panel.center()
         panel.makeKeyAndOrderFront(nil)
 
+        // Ensure the panel can receive key events
+        NSApp.activate(ignoringOtherApps: true)
+
         self.panel = panel
     }
 
@@ -49,40 +53,60 @@ private struct HostSelectorView: View {
     let onSelect: (SSHSession) -> Void
     let onCancel: () -> Void
 
+    @State private var selectedIndex = 0
+
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 2) {
-                    ForEach(sessions, id: \.self) { session in
-                        Button(action: { onSelect(session) }) {
-                            HStack {
-                                Text(">_")
-                                    .font(.caption.monospaced())
-                                    .foregroundColor(.secondary)
-                                Text(session.displayName)
-                                    .font(.system(.body, design: .monospaced))
-                                Spacer()
-                                Text("PID \(session.pid)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .contentShape(Rectangle())
+            VStack(spacing: 2) {
+                ForEach(Array(sessions.enumerated()), id: \.element) { index, session in
+                    Button(action: { onSelect(session) }) {
+                        HStack {
+                            Text(">_")
+                                .font(.caption.monospaced())
+                                .foregroundColor(.secondary)
+                            Text(session.displayName)
+                                .font(.system(.body, design: .monospaced))
+                            Spacer()
+                            Text("PID \(session.pid)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        .cornerRadius(6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .background(index == selectedIndex
+                        ? Color.accentColor.opacity(0.3)
+                        : Color(nsColor: .controlBackgroundColor))
+                    .cornerRadius(6)
                 }
-                .padding(8)
             }
+            .padding(8)
 
             Divider()
 
-            Button("Cancel") { onCancel() }
-                .keyboardShortcut(.cancelAction)
-                .padding(8)
+            HStack {
+                Text("Up/Down to navigate, Enter to select")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(8)
+        }
+        .onKeyPress(.upArrow) {
+            selectedIndex = max(0, selectedIndex - 1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            selectedIndex = min(sessions.count - 1, selectedIndex + 1)
+            return .handled
+        }
+        .onKeyPress(.return) {
+            onSelect(sessions[selectedIndex])
+            return .handled
         }
     }
 }

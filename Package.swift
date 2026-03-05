@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Clipshove",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/soffes/HotKey", branch: "main"),
     ],
