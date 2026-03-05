@@ -1,15 +1,20 @@
 import AppKit
 import SwiftUI
 
+private class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 final class HostSelectorPanel {
     private var panel: NSPanel?
 
     func show(sessions: [SSHSession], onSelect: @escaping (SSHSession) -> Void) {
         close()
 
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 0),
-            styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -18,7 +23,6 @@ final class HostSelectorPanel {
         panel.isMovableByWindowBackground = true
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .visible
-        panel.becomesKeyOnlyIfNeeded = false
 
         let view = HostSelectorView(sessions: sessions) { [weak self] session in
             onSelect(session)
@@ -34,10 +38,9 @@ final class HostSelectorPanel {
         let frame = NSRect(x: 0, y: 0, width: 280, height: min(height, 400))
         panel.setContentSize(frame.size)
         panel.center()
-        panel.makeKeyAndOrderFront(nil)
 
-        // Ensure the panel can receive key events
         NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
 
         self.panel = panel
     }
@@ -54,6 +57,7 @@ private struct HostSelectorView: View {
     let onCancel: () -> Void
 
     @State private var selectedIndex = 0
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,15 +91,15 @@ private struct HostSelectorView: View {
             Divider()
 
             HStack {
-                Text("Up/Down to navigate, Enter to select")
+                Text("\u{2191}\u{2193} navigate  \u{23CE} select  esc cancel")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Button("Cancel") { onCancel() }
-                    .keyboardShortcut(.cancelAction)
             }
             .padding(8)
         }
+        .focusable()
+        .focused($isFocused)
         .onKeyPress(.upArrow) {
             selectedIndex = max(0, selectedIndex - 1)
             return .handled
@@ -107,6 +111,13 @@ private struct HostSelectorView: View {
         .onKeyPress(.return) {
             onSelect(sessions[selectedIndex])
             return .handled
+        }
+        .onKeyPress(.escape) {
+            onCancel()
+            return .handled
+        }
+        .onAppear {
+            isFocused = true
         }
     }
 }
