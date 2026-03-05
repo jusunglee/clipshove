@@ -46,8 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func pushTo(host: String) {
         ClipboardPusher.push(to: host) { [weak self] result in
             switch result {
-            case .success:
-                self?.showToast("Pushed to \(host)")
+            case .success(let kind):
+                self?.showToast("Pushed \(kind) to \(host)")
             case .emptyClipboard:
                 self?.showToast("Clipboard is empty")
             case .sshFailed(let error):

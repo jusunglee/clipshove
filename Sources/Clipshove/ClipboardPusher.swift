@@ -2,25 +2,75 @@ import AppKit
 import Foundation
 
 enum PushResult {
-    case success
+    case success(String) // description of what was pushed
     case emptyClipboard
     case sshFailed(String)
 }
 
 enum ClipboardPusher {
     static func push(to host: String, completion: @escaping (PushResult) -> Void) {
-        guard let content = NSPasteboard.general.string(forType: .string), !content.isEmpty else {
-            completion(.emptyClipboard)
+        let pb = NSPasteboard.general
+
+        // Try text first
+        if let content = pb.string(forType: .string), !content.isEmpty {
+            let contentData = Data(content.utf8)
+            if contentData.count > 1_000_000 {
+                print("[Clipshove] Warning: clipboard content is over 1MB (\(contentData.count) bytes)")
+            }
+            runSSH(host: host, command: "pbcopy", data: contentData) { result in
+                switch result {
+                case .success:
+                    completion(.success("text"))
+                case .failure(let err):
+                    completion(.sshFailed(err))
+                }
+            }
             return
         }
 
-        let contentData = Data(content.utf8)
+        // Try image (TIFF is the standard pasteboard image type on macOS)
+        if let imgData = pb.data(forType: .tiff) {
+            // Convert to PNG for transfer
+            guard let bitmap = NSBitmapImageRep(data: imgData),
+                  let pngData = bitmap.representation(using: .png, properties: [:]) else {
+                completion(.emptyClipboard)
+                return
+            }
 
-        if contentData.count > 1_000_000 {
-            // Warn but still proceed — the plan says "warning" not "block"
-            print("Warning: clipboard content is over 1MB (\(contentData.count) bytes)")
+            if pngData.count > 10_000_000 {
+                print("[Clipshove] Warning: image is over 10MB (\(pngData.count) bytes)")
+            }
+
+            // Remote script: decode base64 PNG and set clipboard via osascript
+            let remoteScript = """
+                tmpfile=$(mktemp /tmp/clipshove.XXXXXX.png) && \
+                base64 -D > "$tmpfile" && \
+                osascript -e 'set the clipboard to (read (POSIX file "'$tmpfile'") as «class PNGf»)' && \
+                rm -f "$tmpfile"
+                """
+
+            let b64Data = pngData.base64EncodedData()
+
+            runSSH(host: host, command: remoteScript, data: b64Data) { result in
+                switch result {
+                case .success:
+                    completion(.success("image"))
+                case .failure(let err):
+                    completion(.sshFailed(err))
+                }
+            }
+            return
         }
 
+        completion(.emptyClipboard)
+    }
+
+    private enum SSHResult {
+        case success
+        case failure(String)
+    }
+
+    private static func runSSH(host: String, command: String, data: Data, completion: @escaping (SSHResult) -> Void) {
         let process = Process()
         let stdinPipe = Pipe()
         let stderrPipe = Pipe()
@@ -30,7 +80,7 @@ enum ClipboardPusher {
             "-o", "BatchMode=yes",
             "-o", "ConnectTimeout=5",
             host,
-            "pbcopy"
+            command
         ]
         process.standardInput = stdinPipe
         process.standardOutput = FileHandle.nullDevice
@@ -44,17 +94,17 @@ enum ClipboardPusher {
                 if proc.terminationStatus == 0 {
                     completion(.success)
                 } else {
-                    completion(.sshFailed(stderrStr.trimmingCharacters(in: .whitespacesAndNewlines)))
+                    completion(.failure(stderrStr.trimmingCharacters(in: .whitespacesAndNewlines)))
                 }
             }
         }
 
         do {
             try process.run()
-            stdinPipe.fileHandleForWriting.write(contentData)
+            stdinPipe.fileHandleForWriting.write(data)
             stdinPipe.fileHandleForWriting.closeFile()
         } catch {
-            completion(.sshFailed(error.localizedDescription))
+            completion(.failure(error.localizedDescription))
         }
     }
 }
