@@ -1,24 +1,30 @@
 # Clipshove
 
+[![Build & Release](https://github.com/jusunglee/clipshove/actions/workflows/build.yml/badge.svg)](https://github.com/jusunglee/clipshove/actions/workflows/build.yml)
+
 A macOS menu bar app that pushes your local clipboard to a remote Mac's clipboard over SSH. Triggered by a global hotkey (**Shift+Cmd+V**).
 
 Built for use with Tailscale — push your clipboard to any Mac you have an active SSH session to, with zero configuration on the remote end.
 
 ## How It Works
 
-1. Copy something on your local Mac
+1. Copy something on your local Mac (text or image)
 2. Press **Shift+Cmd+V**
 3. Clipshove detects your active SSH sessions and pipes your clipboard via stdin to `pbcopy` on the remote Mac
-4. The text is now on the remote clipboard
+4. The content is now on the remote clipboard
 
-If you have one active SSH session, it pushes directly. Multiple sessions? A floating picker lets you choose. You can also pin a host via the menu bar to always push to it.
+If you have one active SSH session, it pushes directly. Multiple sessions? A floating picker lets you choose (arrow keys + Enter). You can also pin a host via the menu bar to always push to it.
 
 ## Install
 
-Requires macOS 13+ and Swift 5.9+.
+Download the latest DMG from [Releases](https://github.com/jusunglee/clipshove/releases), open it, and drag Clipshove to Applications.
+
+### Build from Source
+
+Requires macOS 14+ and Swift 5.9+.
 
 ```
-git clone <repo-url>
+git clone https://github.com/jusunglee/clipshove.git
 cd clipshove
 swift build -c release
 cp .build/release/Clipshove /usr/local/bin/
@@ -33,22 +39,23 @@ swift run
 ## Usage
 
 - **Shift+Cmd+V** — Push clipboard to remote host
-- **Menu bar icon** (paper plane) — View active sessions, pin a host, or trigger a push manually
+- **Menu bar icon** — View active sessions, pin a host, or trigger a push manually
 
 ### Pinning a Host
 
-Click the menu bar icon → **Pin to Host** → select a host. All future pushes go directly to that host without detection. Select **Auto** to go back to auto-detecting.
+Click the menu bar icon > **Pin to Host** > select a host. All future pushes go directly to that host without detection. Select **Auto** to go back to auto-detecting.
 
 ## Requirements
 
 - **SSH key auth** to the remote Mac (Clipshove uses `BatchMode=yes` — no password prompts)
-- **Accessibility permission** — needed for the global hotkey. macOS will prompt on first launch, or grant it in System Settings → Privacy & Security → Accessibility
+- **Accessibility permission** — needed for the global hotkey. macOS will prompt on first launch, or grant it in System Settings > Privacy & Security > Accessibility
 - **`pbcopy`** on the remote Mac (standard on macOS)
 
 ## Design
 
 - **No attack surface** — outbound SSH only, nothing listens on any port
 - **Clipboard via stdin** — no shell escaping issues; handles quotes, newlines, emoji, binary-ish text
+- **Image support** — images are converted to PNG, base64-encoded over SSH, and set on the remote clipboard via osascript
 - **Non-activating UI** — the host picker and toasts don't steal focus from your current app
 - **Fail-fast SSH** — `ConnectTimeout=5` and `BatchMode=yes` so it never hangs
 
@@ -87,12 +94,14 @@ The actual push is the core trick. Clipshove spawns a `Process` running:
 /usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=5 <host> pbcopy
 ```
 
-The clipboard content is written to the process's **stdin pipe**, then the pipe is closed. This is critical — the content never touches shell arguments, command strings, or environment variables. It goes directly from `NSPasteboard` → `Data` → `Pipe.fileHandleForWriting` → SSH transport → remote `pbcopy`'s stdin. This means:
+The clipboard content is written to the process's **stdin pipe**, then the pipe is closed. This is critical — the content never touches shell arguments, command strings, or environment variables. It goes directly from `NSPasteboard` > `Data` > `Pipe.fileHandleForWriting` > SSH transport > remote `pbcopy`'s stdin. This means:
 
 - No escaping needed for quotes, backslashes, newlines, or special characters
 - No argument length limits (ARG_MAX)
 - Binary-safe for any UTF-8 content
 - No shell interpretation on either end
+
+For images, the flow is: `NSPasteboard` TIFF > PNG conversion > base64 encode > SSH pipe > remote base64 decode to temp file > `osascript` sets clipboard from PNG file > cleanup.
 
 `BatchMode=yes` ensures SSH never prompts for a password (it either authenticates via key or fails immediately). `ConnectTimeout=5` caps the TCP connection timeout so a dead host doesn't hang the app.
 
@@ -100,11 +109,11 @@ The process runs asynchronously via `terminationHandler` — the main thread sta
 
 ### UI Layer
 
-**Menu bar**: An `NSStatusItem` with an SF Symbol (`paperplane`). The `NSMenu` is rebuilt on every open via `NSMenuDelegate.menuWillOpen` so the session list is always fresh.
+**Menu bar**: An `NSStatusItem` with a clipboard emoji. The menu is rebuilt on every click so the session list is always fresh.
 
-**Host selector**: When multiple SSH sessions are detected, Clipshove shows an `NSPanel` with `.nonactivatingPanel` style mask and `.floating` window level. This means the panel appears above other windows but doesn't steal keyboard focus from whatever app you're working in. The panel content is a SwiftUI `View` hosted via `NSHostingView` — a simple list of sessions with PID labels.
+**Host selector**: When multiple SSH sessions are detected, Clipshove shows a `KeyablePanel` (NSPanel subclass) with `.floating` window level. Arrow keys navigate, Enter selects, Esc cancels. The panel content is a SwiftUI `View` hosted via `NSHostingView`.
 
-**Toasts**: Success/failure feedback uses the same `NSPanel` approach with `NSVisualEffectView` (`.hudWindow` material) for the frosted-glass look. Toasts auto-dismiss after 2 seconds. No notification permissions required.
+**Toasts**: Success/failure feedback uses `NSPanel` with `NSVisualEffectView` (`.hudWindow` material) for the frosted-glass look. Toasts auto-dismiss after 2 seconds. No notification permissions required.
 
 ### Why Not Just Use `osascript` / AppleScript?
 

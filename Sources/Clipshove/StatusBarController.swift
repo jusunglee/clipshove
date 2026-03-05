@@ -11,21 +11,14 @@ final class StatusBarController: NSObject {
         super.init()
 
         if let button = statusItem.button {
-            button.title = "CS"
+            button.title = "\u{1F4CB}"
             button.action = #selector(statusBarClicked)
             button.target = self
         }
-
-        print("[Clipshove] StatusBarController initialized")
     }
 
     @objc private func statusBarClicked() {
-        print("[Clipshove] Status bar clicked")
         buildMenu()
-        print("[Clipshove] Menu has \(menu.items.count) items")
-        for item in menu.items {
-            print("[Clipshove]   - \(item.title)")
-        }
         statusItem.menu = menu
         DispatchQueue.main.async { [weak self] in
             guard let self, let button = self.statusItem.button else { return }
@@ -37,20 +30,16 @@ final class StatusBarController: NSObject {
     }
 
     private func buildMenu() {
-        print("[Clipshove] buildMenu() start")
         menu.removeAllItems()
 
         let pushItem = NSMenuItem(title: "Push Clipboard", action: #selector(pushClicked), keyEquivalent: "V")
         pushItem.keyEquivalentModifierMask = [.shift, .command]
         pushItem.target = self
         menu.addItem(pushItem)
-        print("[Clipshove] Added push item")
 
         menu.addItem(.separator())
 
-        print("[Clipshove] About to detect SSH sessions")
         let sessions = SSHSessionDetector.detect()
-        print("[Clipshove] Detected \(sessions.count) SSH sessions")
         if sessions.isEmpty {
             let noSessions = NSMenuItem(title: "No active SSH sessions", action: nil, keyEquivalent: "")
             noSessions.isEnabled = false
