@@ -6,6 +6,14 @@ A macOS menu bar app that pushes your local clipboard to a remote Mac's clipboar
 
 Built for use with Tailscale — push your clipboard to any Mac you have an active SSH session to, with zero configuration on the remote end.
 
+This was inspired by a problem I had with Claude Code: if you try to paste an image from local clipboard into a claude code inside a remote SSH session, it can't find it and suggests you SCP it instead. No way am I going to do all that. With clipshove, the flow is now just:
+
+1. Copy image to clipboard (screenshot for example)
+2. Command + Shift + V to shove it to remote
+3. On remote claude code session, press Ctrl V to paste the image in
+
+Easy peasy!
+
 ## How It Works
 
 1. Copy something on your local Mac (text or image)
