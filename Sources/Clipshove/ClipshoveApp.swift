@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey.keyDownHandler = { [weak self] in
             self?.handlePush()
         }
+
+        UpdateChecker.check()
     }
 
     private func handlePush() {

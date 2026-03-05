@@ -86,6 +86,21 @@ final class StatusBarController: NSObject {
 
         menu.addItem(.separator())
 
+        if UpdateChecker.updateAvailable, let latest = UpdateChecker.latestVersion {
+            let updateItem = NSMenuItem(
+                title: "Update Available (v\(latest))",
+                action: #selector(openUpdate),
+                keyEquivalent: ""
+            )
+            updateItem.target = self
+            menu.addItem(updateItem)
+            menu.addItem(.separator())
+        }
+
+        let versionItem = NSMenuItem(title: "v\(UpdateChecker.currentVersion)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
     }
@@ -96,5 +111,11 @@ final class StatusBarController: NSObject {
 
     @objc private func pinSelected(_ sender: NSMenuItem) {
         pinnedHost = sender.representedObject as? String
+    }
+
+    @objc private func openUpdate() {
+        if let urlStr = UpdateChecker.releaseURL, let url = URL(string: urlStr) {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
