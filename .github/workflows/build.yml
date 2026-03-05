@@ -24,8 +24,10 @@ jobs:
           mkdir -p "$APP/Contents/Resources"
 
           cp .build/release/Clipshove "$APP/Contents/MacOS/"
+          cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 
-          cat > "$APP/Contents/Info.plist" << 'PLIST'
+          TAG="${GITHUB_REF_NAME#v}"
+          cat > "$APP/Contents/Info.plist" << PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -37,9 +39,11 @@ jobs:
             <key>CFBundleName</key>
             <string>Clipshove</string>
             <key>CFBundleVersion</key>
-            <string>1.0</string>
+            <string>${TAG}</string>
             <key>CFBundleShortVersionString</key>
-            <string>1.0</string>
+            <string>${TAG}</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
             <key>LSMinimumSystemVersion</key>
@@ -49,6 +53,9 @@ jobs:
           </dict>
           </plist>
           PLIST
+
+      - name: Ad-hoc codesign
+        run: codesign --force --deep --sign - Clipshove.app
 
       - name: Create DMG
         run: |
