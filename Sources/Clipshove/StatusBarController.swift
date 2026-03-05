@@ -1,30 +1,37 @@
 import AppKit
 
-final class StatusBarController: NSObject, NSMenuDelegate {
+final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let menu = NSMenu()
     var pinnedHost: String?
     var onPushTriggered: (() -> Void)?
 
     override init() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
         if let button = statusItem.button {
-            button.title = "\u{1F4CB}"
+            button.title = "CS"
+            button.action = #selector(statusBarClicked)
+            button.target = self
         }
 
-        menu.delegate = self
-        menu.addItem(NSMenuItem(title: "Loading...", action: nil, keyEquivalent: ""))
-        statusItem.menu = menu
+        print("[Clipshove] StatusBarController initialized")
     }
 
-    // MARK: - NSMenuDelegate
+    @objc private func statusBarClicked() {
+        print("[Clipshove] Status bar clicked")
+        buildMenu()
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem.menu = nil
+        }
+    }
 
-    func menuWillOpen(_ menu: NSMenu) {
+    private func buildMenu() {
         menu.removeAllItems()
 
-        // Push action
         let pushItem = NSMenuItem(title: "Push Clipboard", action: #selector(pushClicked), keyEquivalent: "V")
         pushItem.keyEquivalentModifierMask = [.shift, .command]
         pushItem.target = self
@@ -32,8 +39,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        // Active sessions
         let sessions = SSHSessionDetector.detect()
+        print("[Clipshove] Detected \(sessions.count) SSH sessions")
         if sessions.isEmpty {
             let noSessions = NSMenuItem(title: "No active SSH sessions", action: nil, keyEquivalent: "")
             noSessions.isEnabled = false
@@ -51,7 +58,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        // Pin submenu
         let pinItem = NSMenuItem(title: "Pin to Host", action: nil, keyEquivalent: "")
         let pinMenu = NSMenu()
 
