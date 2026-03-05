@@ -56,7 +56,8 @@ private struct HostSelectorView: View {
                     ForEach(sessions, id: \.self) { session in
                         Button(action: { onSelect(session) }) {
                             HStack {
-                                Image(systemName: "terminal")
+                                Text(">_")
+                                    .font(.caption.monospaced())
                                     .foregroundColor(.secondary)
                                 Text(session.displayName)
                                     .font(.system(.body, design: .monospaced))

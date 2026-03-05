@@ -11,7 +11,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         super.init()
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "paperplane", accessibilityDescription: "Clipshove")
+            button.title = "\u{1F4CB}"
         }
 
         menu.delegate = self
