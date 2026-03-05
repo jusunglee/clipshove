@@ -15,6 +15,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         menu.delegate = self
+        menu.addItem(NSMenuItem(title: "Loading...", action: nil, keyEquivalent: ""))
         statusItem.menu = menu
     }
 
