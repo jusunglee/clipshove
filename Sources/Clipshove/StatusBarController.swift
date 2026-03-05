@@ -22,11 +22,9 @@ final class StatusBarController: NSObject {
     @objc private func statusBarClicked() {
         print("[Clipshove] Status bar clicked")
         buildMenu()
-        statusItem.menu = menu
-        statusItem.button?.performClick(nil)
-        DispatchQueue.main.async { [weak self] in
-            self?.statusItem.menu = nil
-        }
+        guard let button = statusItem.button else { return }
+        let pos = NSPoint(x: 0, y: button.bounds.height + 5)
+        menu.popUp(positioning: nil, at: pos, in: button)
     }
 
     private func buildMenu() {
