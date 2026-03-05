@@ -25,7 +25,12 @@ If you have one active SSH session, it pushes directly. Multiple sessions? A flo
 
 ## Install
 
-Download the latest DMG from [Releases](https://github.com/jusunglee/clipshove/releases), open it, and drag Clipshove to Applications.
+1. Download the latest DMG from [Releases](https://github.com/jusunglee/clipshove/releases), open it, and drag Clipshove to Applications
+2. If macOS says "Clipshove is damaged", run:
+   ```
+   xattr -cr /Applications/Clipshove.app
+   ```
+3. On first launch, macOS will prompt you to grant Accessibility access. Click **Open System Settings** and enable Clipshove — this is required for the global hotkey (Shift+Cmd+V) to work
 
 ### Build from Source
 
