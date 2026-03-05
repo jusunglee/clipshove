@@ -23,12 +23,12 @@ enum SSHSessionDetector {
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             return []
         }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         guard let output = String(data: data, encoding: .utf8) else { return [] }
 
         var seen = Set<String>()
