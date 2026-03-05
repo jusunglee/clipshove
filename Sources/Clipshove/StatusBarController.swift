@@ -37,15 +37,18 @@ final class StatusBarController: NSObject {
     }
 
     private func buildMenu() {
+        print("[Clipshove] buildMenu() start")
         menu.removeAllItems()
 
         let pushItem = NSMenuItem(title: "Push Clipboard", action: #selector(pushClicked), keyEquivalent: "V")
         pushItem.keyEquivalentModifierMask = [.shift, .command]
         pushItem.target = self
         menu.addItem(pushItem)
+        print("[Clipshove] Added push item")
 
         menu.addItem(.separator())
 
+        print("[Clipshove] About to detect SSH sessions")
         let sessions = SSHSessionDetector.detect()
         print("[Clipshove] Detected \(sessions.count) SSH sessions")
         if sessions.isEmpty {
