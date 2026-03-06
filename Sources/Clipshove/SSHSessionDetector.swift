@@ -48,20 +48,28 @@ enum SSHSessionDetector {
             guard parts.count == 2, let pid = Int32(parts[0]) else { continue }
 
             let command = String(parts[1])
-            guard let host = parseHost(from: command) else { continue }
+            guard let destination = parseDestination(from: command) else { continue }
 
-            if seen.insert(host).inserted {
-                sessions.append(SSHSession(pid: pid, host: host, displayName: host))
+            // Keep full user@host for connecting, use just hostname for display/dedup
+            let displayName: String
+            if let atIndex = destination.lastIndex(of: "@") {
+                displayName = String(destination[destination.index(after: atIndex)...])
+            } else {
+                displayName = destination
+            }
+
+            if seen.insert(destination).inserted {
+                sessions.append(SSHSession(pid: pid, host: destination, displayName: displayName))
             }
         }
 
         return sessions
     }
 
-    private static func parseHost(from command: String) -> String? {
+    /// Returns the full destination (e.g. "user@host" or "host")
+    private static func parseDestination(from command: String) -> String? {
         let args = command.components(separatedBy: " ").filter { !$0.isEmpty }
 
-        // Find the ssh binary, then parse args after it
         guard let sshIndex = args.firstIndex(where: { $0.hasSuffix("ssh") }) else { return nil }
 
         var i = sshIndex + 1
@@ -69,31 +77,23 @@ enum SSHSessionDetector {
             let arg = args[i]
 
             if arg == "--" {
-                // Next arg after -- is the destination
                 i += 1
                 break
             }
 
             if arg.hasPrefix("-") && arg != "-" {
                 if flagsWithValue.contains(arg) {
-                    i += 2 // skip flag and its value
+                    i += 2
                 } else {
-                    i += 1 // boolean flag
+                    i += 1
                 }
                 continue
             }
 
-            // First non-flag argument is the destination
             break
         }
 
         guard i < args.count else { return nil }
-        let destination = args[i]
-
-        // Strip user@ prefix if present
-        if let atIndex = destination.lastIndex(of: "@") {
-            return String(destination[destination.index(after: atIndex)...])
-        }
-        return destination
+        return args[i]
     }
 }
